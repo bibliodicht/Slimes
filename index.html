@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>分裂陣 — BUNRETSU-JIN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1117;
+    --bg2:#0a0d12;
+    --panel:#151b23;
+    --panel-border:#262f3b;
+    --cell-a:#182028;
+    --cell-b:#141a21;
+    --grid-line:#232c38;
+    --text:#e7ecf2;
+    --muted:#7c8898;
+    --muted-dim:#54606f;
+    --pA:#4fd7c4;
+    --pA-glow:rgba(79,215,196,.55);
+    --pB:#f0a15c;
+    --pB-glow:rgba(240,161,92,.55);
+    --move:#6c8ef5;
+    --attack:#e8607a;
+    --place:#c48af0;
+    --ok:#4fd7c4;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:radial-gradient(120% 140% at 15% 0%, #131a22 0%, var(--bg) 45%, var(--bg2) 100%);
+    color:var(--text);
+    font-family:'Noto Sans JP', sans-serif;
+    min-height:100vh;
+    padding:20px 16px 60px;
+  }
+  .app{max-width:1040px;margin:0 auto;}
+
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:12px;
+    padding-bottom:16px;
+    margin-bottom:18px;
+    border-bottom:1px solid var(--panel-border);
+    flex-wrap:wrap;
+  }
+  .title-block h1{
+    font-size:26px;
+    font-weight:900;
+    letter-spacing:.02em;
+    margin:0 0 4px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .title-block h1 .en{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    font-weight:500;
+    color:var(--muted-dim);
+    letter-spacing:.12em;
+  }
+  .title-block p{
+    margin:0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--muted);
+    text-transform:uppercase;
+  }
+  .rules-btn{
+    background:transparent;
+    border:1px solid var(--panel-border);
+    color:var(--muted);
+    font-family:'Noto Sans JP',sans-serif;
+    font-size:13px;
+    padding:8px 14px;
+    border-radius:20px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .rules-btn:hover{border-color:var(--pA);color:var(--pA);}
+
+  main{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 300px;
+    gap:24px;
+    align-items:start;
+  }
+  @media (max-width:760px){
+    main{grid-template-columns:1fr;}
+  }
+
+  .board-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+  }
+  .board-status{
+    width:100%;
+    max-width:520px;
+  }
+  .board-status-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:5px;
+  }
+  .board-status-turn{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.06em;
+    color:var(--text);
+  }
+  .board-status-who{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .board-status-bar{
+    width:100%;
+    height:5px;
+    border-radius:4px;
+    background:var(--bg2);
+    border:1px solid var(--panel-border);
+    overflow:hidden;
+  }
+  .board-status-fill{
+    height:100%;
+    width:5%;
+    background:linear-gradient(90deg, var(--pA), var(--pB));
+    transition:width .25s ease;
+  }
+  .board-grid-outer{
+    display:grid;
+    grid-template-columns:20px 1fr;
+    grid-template-rows:1fr 20px;
+    width:100%;
+    max-width:520px;
+    gap:4px;
+  }
+  .ranks{
+    display:grid;
+    grid-template-rows:repeat(5,1fr);
+    align-items:stretch;
+  }
+  .ranks span{
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;color:var(--muted-dim);
+  }
+  .files{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+  }
+  .files span{
+    display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;color:var(--muted-dim);
+  }
+  .corner{}
+  .board{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    grid-template-rows:repeat(5,1fr);
+    aspect-ratio:1/1;
+    width:100%;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid var(--panel-border);
+    box-shadow:0 20px 50px -20px rgba(0,0,0,.6);
+  }
+  .cell{
+    position:relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--cell-a);
+    border:1px solid var(--grid-line);
+    cursor:default;
+  }
+  .cell.alt{background:var(--cell-b);}
+  .cell.selectable{cursor:pointer;}
+  .cell.selectable:hover{filter:brightness(1.25);}
+  .cell.selected{
+    box-shadow:inset 0 0 0 2px var(--text);
+  }
+  .cell.move-target{cursor:pointer;}
+  .cell.move-target::before{
+    content:'';
+    position:absolute;
+    width:26%;height:26%;
+    border-radius:50%;
+    background:var(--move);
+    opacity:.85;
+  }
+  .cell.attack-target{cursor:pointer;}
+  .cell.attack-target::before{
+    content:'';
+    position:absolute;
+    inset:8%;
+    border:2px solid var(--attack);
+    border-radius:6px;
+    box-shadow:0 0 10px -1px var(--attack);
+  }
+  .cell.split-candidate{cursor:pointer;}
+  .cell.split-candidate::before{
+    content:'';
+    position:absolute;
+    inset:6%;
+    border:2px dashed var(--place);
+    border-radius:8px;
+    animation:pulse 1.1s infinite;
+  }
+  .cell.forced-attacker::before{
+    content:'';
+    position:absolute;
+    inset:3%;
+    border-radius:50%;
+    border:2px solid var(--attack);
+    box-shadow:0 0 12px -1px var(--attack);
+    animation:pulse 1s infinite;
+    pointer-events:none;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:.55;}
+    50%{opacity:1;}
+  }
+  .cell.burst::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.55), transparent 70%);
+    animation:burst .5s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes burst{
+    0%{transform:scale(.2);opacity:1;}
+    100%{transform:scale(1.8);opacity:0;}
+  }
+
+  .stack{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:82%;
+    height:82%;
+  }
+  .piece{
+    display:flex;align-items:center;justify-content:center;
+    border-radius:50%;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;
+    color:#0a0d12;
+    flex:none;
+    animation:pop .25s ease-out;
+  }
+  @keyframes pop{
+    0%{transform:scale(.3);opacity:0;}
+    100%{transform:scale(1);opacity:1;}
+  }
+  .piece.v3{width:78%;height:78%;font-size:18px;}
+  .piece.v2{width:62%;height:62%;font-size:15px;}
+  .piece.v1{width:46%;height:46%;font-size:12px;}
+  .piece.pA{background:var(--pA);box-shadow:0 0 10px -1px var(--pA-glow);}
+  .piece.pB{background:var(--pB);box-shadow:0 0 10px -1px var(--pB-glow);}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:12px;
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .turn-indicator{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 12px;
+    border-radius:8px;
+    background:var(--bg2);
+    border:1px solid var(--panel-border);
+  }
+  .turn-dot{
+    width:14px;height:14px;border-radius:50%;
+    flex:none;
+  }
+  .turn-dot.pA{background:var(--pA);box-shadow:0 0 12px var(--pA-glow);}
+  .turn-dot.pB{background:var(--pB);box-shadow:0 0 12px var(--pB-glow);}
+  .turn-text{font-size:14px;font-weight:700;}
+  .turn-text small{
+    display:block;
+    font-family:'JetBrains Mono',monospace;
+    font-weight:400;
+    font-size:10px;
+    color:var(--muted);
+    letter-spacing:.08em;
+  }
+
+  .counts{
+    display:flex;
+    gap:8px;
+  }
+  .count-chip{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:8px 10px;
+    border-radius:8px;
+    background:var(--bg2);
+    border:1px solid var(--panel-border);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+  .count-chip .dot{width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .count-chip.a .dot{background:var(--pA);}
+  .count-chip.b .dot{background:var(--pB);}
+  .count-chip span.n{font-weight:700;color:var(--text);}
+
+  .action-box{
+    background:var(--bg2);
+    border:1px solid var(--panel-border);
+    border-radius:8px;
+    padding:12px;
+    min-height:52px;
+    font-size:13px;
+    line-height:1.5;
+    color:var(--text);
+  }
+  .action-box .hint{color:var(--muted);font-size:12px;}
+  .choice-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:8px;
+  }
+  .choice-btn{
+    display:flex;align-items:center;gap:6px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    color:var(--text);
+    padding:6px 10px;
+    border-radius:20px;
+    cursor:pointer;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    transition:.15s;
+  }
+  .choice-btn:hover{border-color:var(--move);}
+  .choice-btn .mini{
+    width:16px;height:16px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-weight:700;color:#0a0d12;
+  }
+
+  .log-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    color:var(--muted-dim);
+    text-transform:uppercase;
+  }
+  .log{
+    height:180px;
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column-reverse;
+    gap:4px;
+    font-size:12px;
+    padding-right:4px;
+  }
+  .log::-webkit-scrollbar{width:6px;}
+  .log::-webkit-scrollbar-thumb{background:var(--panel-border);border-radius:4px;}
+  .log-entry{
+    color:var(--muted);
+    border-left:2px solid var(--panel-border);
+    padding-left:8px;
+  }
+  .log-entry.a{border-left-color:var(--pA);}
+  .log-entry.b{border-left-color:var(--pB);}
+
+  .controls{display:flex;gap:8px;}
+  .btn{
+    flex:1;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid var(--panel-border);
+    background:var(--bg2);
+    color:var(--text);
+    font-family:'Noto Sans JP',sans-serif;
+    font-size:13px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .btn:hover{border-color:var(--move);color:var(--move);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn:disabled:hover{border-color:var(--panel-border);color:var(--text);}
+  .btn.danger:hover{border-color:var(--attack);color:var(--attack);}
+
+  .modal-overlay{
+    position:fixed;inset:0;
+    background:rgba(5,7,10,.75);
+    display:flex;align-items:center;justify-content:center;
+    padding:20px;
+    z-index:50;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    max-width:520px;
+    width:100%;
+    max-height:82vh;
+    overflow-y:auto;
+    padding:22px;
+  }
+  .modal h2{margin-top:0;font-size:19px;}
+  .modal h3{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:18px 0 6px;}
+  .modal p, .modal li{font-size:13.5px;line-height:1.7;color:#c7cedb;}
+  .modal ul{margin:6px 0;padding-left:20px;}
+  .modal table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;}
+  .modal table th, .modal table td{border:1px solid var(--panel-border);padding:6px 8px;text-align:center;}
+  .modal table th{color:var(--muted);font-weight:500;}
+  .modal .note{
+    margin-top:16px;
+    padding:10px 12px;
+    background:var(--bg2);
+    border-left:3px solid var(--place);
+    border-radius:6px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .modal .close-row{margin-top:18px;text-align:right;}
+
+  .win-modal{text-align:center;}
+  .win-modal .big{
+    font-size:26px;font-weight:900;margin:6px 0 4px;
+  }
+  .win-modal .big.a{color:var(--pA);}
+  .win-modal .big.b{color:var(--pB);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="title-block">
+      <h1>分裂陣 <span class="en">BUNRETSU-JIN</span></h1>
+      <p>5×5 split-strategy prototype — 2 players</p>
+    </div>
+    <button class="rules-btn" id="rulesBtn">ルール / 仕様メモ</button>
+  </header>
+
+  <main>
+    <div class="board-wrap">
+      <div class="board-status" id="boardStatus">
+        <div class="board-status-top">
+          <span class="board-status-turn" id="boardStatusTurn">ターン 1 / 20</span>
+          <span class="board-status-who" id="boardStatusWho">プレイヤーA の番</span>
+        </div>
+        <div class="board-status-bar"><div class="board-status-fill" id="boardStatusFill"></div></div>
+      </div>
+      <div class="board-grid-outer">
+        <div class="corner"></div>
+        <div class="files" id="files"></div>
+        <div class="ranks" id="ranks"></div>
+        <div class="board" id="board"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="turn-indicator">
+        <div class="turn-dot pA" id="turnDot"></div>
+        <div class="turn-text" id="turnText">プレイヤーA の番<small>手駒を選択してください</small></div>
+      </div>
+
+      <div class="counts">
+        <div class="count-chip a"><span><i class="dot"></i>A 残り</span><span class="n" id="countA">5</span></div>
+        <div class="count-chip b"><span><i class="dot"></i>B 残り</span><span class="n" id="countB">5</span></div>
+      </div>
+      <div class="counts">
+        <div class="count-chip"><span>ターン</span><span class="n" id="turnCounter">1 / 20</span></div>
+      </div>
+
+      <div>
+        <div class="log-title" style="margin-bottom:6px;">操作</div>
+        <div class="action-box" id="actionBox">
+          <span class="hint">自分の駒（色つき円）をクリックして選択してください。</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="log-title">操作ログ</div>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="passBtn">パス</button>
+        <button class="btn danger" id="resetBtn">最初から</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay hidden" id="rulesModal">
+  <div class="modal">
+    <h2>ルール / 実装仕様メモ</h2>
+    <h3>基本</h3>
+    <ul>
+      <li>5×5盤、2人対戦（A：ティール／B：オレンジ）。</li>
+      <li>駒は③・②・①の3種。数字は強さの階級。1マスには1個の駒のみ存在します。</li>
+      <li>自分の番には「移動」か「攻撃」のどちらか1回のアクションを行います。</li>
+      <li>移動：8方向のいずれかへ1マス。移動先は必ず空きマスのみ。</li>
+      <li>攻撃：斜め4方向のいずれかにいる相手の駒に対してのみ可能。</li>
+      <li><b>攻撃強制ルール：</b>自分の番が来た時点で、攻撃可能な駒が1つでもあれば、その手番は<b>必ず攻撃</b>を行わなければなりません（移動やパスは選べません）。攻撃可能な駒が複数ある場合は、そのうちどの駒で攻撃するかを自分で1つ選びます。攻撃可能な駒が1つも無い場合のみ、通常通り移動やパスができます。</li>
+    </ul>
+    <h3>攻撃できる相手（駒の強さによる制限）</h3>
+    <table>
+      <tr><th>攻撃する駒</th><th>攻撃できる相手</th></tr>
+      <tr><td>③</td><td>③・②のみ</td></tr>
+      <tr><td>②</td><td>②・①のみ</td></tr>
+      <tr><td>①</td><td>③・②・①（すべて）</td></tr>
+    </table>
+    <h3>攻撃された駒の変化</h3>
+    <ul>
+      <li>③が攻撃される → ②＋①に分裂</li>
+      <li>②が攻撃される → ①＋①に分裂</li>
+      <li>①が攻撃される → 消滅</li>
+      <li>分裂した2個の駒は、攻撃されたマスの周囲8方向（上下左右＋斜め）のうち、<b>異なる2方向</b>のマスに配置されます（配置先はこのプロトタイプでは攻撃側が選択します）。</li>
+    </ul>
+    <h3>分裂先での重ね合わせ（合体）ルール</h3>
+    <table>
+      <tr><th>既にあるマスの駒</th><th>+ 配置される駒</th><th>結果</th></tr>
+      <tr><td>①</td><td>①</td><td>② に合体</td></tr>
+      <tr><td>②</td><td>①</td><td>③ に合体</td></tr>
+      <tr><td>①</td><td>②</td><td>③ に合体</td></tr>
+      <tr><td>上記以外の組み合わせ（③がある／②＋②など）</td><td>—</td><td>配置不可（そのマスは選べません）</td></tr>
+    </table>
+    <p>攻撃された③・②が分裂する際、周囲8マス（上下左右＋斜め）の候補マスが「相手の駒で埋まっている」「味方の駒があり合体もできない（表にない組み合わせ）」「盤外」などで<b>ひとつも置けるマスが無い場合、その③（または②）は分裂前の駒ごとそのまま消滅</b>します。置けるマスが1つ以上あれば分裂は成立し、そのうち置き場のない方の駒だけが個別に消滅します。</p>
+    <h3>勝利条件</h3>
+    <ul>
+      <li>相手の駒が盤上から0個になった時点で即座に勝利（全滅勝ち）。</li>
+      <li>全20ターンが終了した時点でどちらも駒が残っている場合、盤上の持ち駒を得点表で合計し（<b>③=1点／②=2点／①=3点</b>、弱い駒ほど高得点）、点数が高い方が勝利。同点の場合は引き分け。<br><span style="color:var(--muted);font-size:12px;">例：③が1個＋②が2個 → 1 + (2×2) = 5点</span></li>
+      <li>ここでの「1ターン」は、移動・攻撃・パスのいずれか1回のアクションを指します（A・B合わせて20回で終了）。</li>
+    </ul>
+    <div class="note">
+      <b>あいまいだったルールの解釈メモ（要確認）：</b><br>
+      ・分裂先の配置は「攻撃した側」が選ぶ実装にしています（防御側が選ぶ想定なら変更できます）。<br>
+      ・重ね合わせ（合体）は分裂による配置の際にのみ発生し、通常の移動では味方駒がいるマスへは移動できません。<br>
+      ・通常移動は空きマスのみへ可能です。<br>
+      ・1ターンに「移動」または「攻撃」のどちらか1回のみ行える想定です。<br>
+      ・「全20ターン」は片方だけでなく両プレイヤー合計のアクション回数として実装しています（1人10回ずつが目安、想定と違えば変更できます）。<br>
+      気になる点があれば教えてください、調整します。
+    </div>
+    <div class="close-row"><button class="btn" id="closeRules">閉じる</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="winModal">
+  <div class="modal win-modal">
+    <div class="log-title" id="winLabel">GAME OVER</div>
+    <div class="big" id="winText">プレイヤーA の勝利</div>
+    <p id="winDesc">相手の駒がすべて消滅しました。</p>
+    <div class="close-row"><button class="btn" id="playAgainBtn">もう一度プレイ</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const SIZE = 5;
+  const MAX_TURNS = 20;
+  const OWNER_NAME = {A:'プレイヤーA', B:'プレイヤーB'};
+  const ATTACK_ALLOWED = {3:[3,2], 2:[2,1], 1:[3,2,1]};
+
+  function inBoard(r,c){ return r>=0 && r<SIZE && c>=0 && c<SIZE; }
+  function key(r,c){ return r+'_'+c; }
+
+  const DIRS8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+  const DIRS_DIAG = [[-1,-1],[-1,1],[1,-1],[1,1]];
+  const DIRS_ORTH = [[-1,0],[1,0],[0,-1],[0,1]];
+
+  let state = null;
+
+  function freshBoard(){
+    const board = [];
+    for(let r=0;r<SIZE;r++){
+      const row = [];
+      for(let c=0;c<SIZE;c++){
+        row.push({owner:null, value:null});
+      }
+      board.push(row);
+    }
+    const pattern = [1,2,3,2,1];
+    for(let c=0;c<SIZE;c++){
+      board[0][c] = {owner:'A', value:pattern[c]};
+      board[SIZE-1][c] = {owner:'B', value:pattern[c]};
+    }
+    return board;
+  }
+
+  function newGame(){
+    state = {
+      board: freshBoard(),
+      turn: 'A',
+      phase: 'idle', // idle | acting | placing | over
+      selected: null, // {r,c}
+      moveTargets: [],
+      attackTargets: [],
+      splitQueue: [],
+      splitExclude: null,
+      splitOwner: null,
+      placingCandidates: [],
+      log: [],
+      burstCell: null,
+      turnCount: 0,
+      forcedAttackers: []
+    };
+    state.forcedAttackers = computeForcedAttackers();
+    pushLog('新しい対局を開始しました。', null);
+    setActionBox(turnStartHint());
+    render();
+  }
+
+  function pushLog(text, owner){
+    state.log.push({text, owner});
+    if(state.log.length > 200) state.log.shift();
+  }
+
+  function cellAt(r,c){ return state.board[r][c]; }
+
+  function pieceCount(owner){
+    let n=0;
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      if(state.board[r][c].owner===owner) n++;
+    }
+    return n;
+  }
+
+  const SCORE_MAP = {3:1, 2:2, 1:3};
+
+  function pieceScore(owner){
+    let s=0;
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      const cell = state.board[r][c];
+      if(cell.owner===owner) s += SCORE_MAP[cell.value];
+    }
+    return s;
+  }
+
+  function clearSelection(){
+    state.selected = null;
+    state.moveTargets = [];
+    state.attackTargets = [];
+    state.phase = 'idle';
+  }
+
+  function otherPlayer(p){ return p==='A' ? 'B' : 'A'; }
+
+  // merge table: returns resulting value, or null if the merge/placement is not allowed
+  function mergeResult(existing, incoming){
+    if(existing===null) return incoming;
+    if(existing===1 && incoming===1) return 2;
+    if(existing===2 && incoming===1) return 3;
+    if(existing===1 && incoming===2) return 3;
+    return null;
+  }
+
+  function computeTargets(r,c){
+    const val = cellAt(r,c).value;
+    const move = [];
+    for(const [dr,dc] of DIRS8){
+      const nr=r+dr, nc=c+dc;
+      if(inBoard(nr,nc) && cellAt(nr,nc).owner===null){
+        move.push({r:nr,c:nc});
+      }
+    }
+    const allowed = ATTACK_ALLOWED[val];
+    const attack = [];
+    for(const [dr,dc] of DIRS_DIAG){
+      const nr=r+dr, nc=c+dc;
+      if(inBoard(nr,nc)){
+        const cell = cellAt(nr,nc);
+        if(cell.owner === otherPlayer(state.turn) && allowed.includes(cell.value)){
+          attack.push({r:nr,c:nc});
+        }
+      }
+    }
+    return {move, attack};
+  }
+
+  function computeForcedAttackers(){
+    const list = [];
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      const cell = cellAt(r,c);
+      if(cell.owner===state.turn && cell.value!==null){
+        const t = computeTargets(r,c);
+        if(t.attack.length>0) list.push({r,c});
+      }
+    }
+    return list;
+  }
+
+  // ---------- interaction ----------
+  function onCellClick(r,c){
+    if(state.phase==='over') return;
+    const cell = cellAt(r,c);
+
+    if(state.phase==='placing'){
+      const isCand = state.placingCandidates.some(x=>x.r===r&&x.c===c);
+      if(isCand) placeSplitPiece(r,c);
+      return;
+    }
+
+    if(state.phase==='idle'){
+      const forced = state.forcedAttackers.length>0;
+      if(forced){
+        const isForced = state.forcedAttackers.some(x=>x.r===r&&x.c===c);
+        if(isForced) selectCell(r,c);
+        return;
+      }
+      if(cell.owner===state.turn && cell.value!==null){
+        selectCell(r,c);
+      }
+      return;
+    }
+
+    if(state.phase==='acting'){
+      const forced = state.forcedAttackers.length>0;
+      if(cell.owner===state.turn && cell.value!==null && !(state.selected.r===r&&state.selected.c===c)){
+        if(forced){
+          const isForced = state.forcedAttackers.some(x=>x.r===r&&x.c===c);
+          if(isForced) selectCell(r,c);
+          return;
+        }
+        selectCell(r,c);
+        return;
+      }
+      if(state.selected && state.selected.r===r && state.selected.c===c){
+        clearSelection();
+        setActionBox(turnStartHint());
+        render();
+        return;
+      }
+      const isMove = state.moveTargets.some(x=>x.r===r&&x.c===c);
+      const isAttack = state.attackTargets.some(x=>x.r===r&&x.c===c);
+      if(isMove){ doMove(r,c); return; }
+      if(isAttack){ resolveAttack(r,c); return; }
+    }
+  }
+
+  function turnStartHint(){
+    if(state.forcedAttackers.length>0){
+      return `<span class="hint">攻撃できる駒があるため、この手番は<b>攻撃が必須</b>です。赤いリング表示の駒から1つ選んでください。</span>`;
+    }
+    return `<span class="hint">自分の駒（色つき円）をクリックして選択してください。</span>`;
+  }
+
+  function selectCell(r,c){
+    state.selected = {r,c};
+    const t = computeTargets(r,c);
+    const forced = state.forcedAttackers.length>0;
+    state.moveTargets = forced ? [] : t.move;
+    state.attackTargets = t.attack;
+    state.phase = 'acting';
+    if(forced){
+      setActionBox(`<span class="hint">攻撃が必須です。赤い枠の相手駒をクリックして攻撃してください。</span>`);
+    } else if(t.move.length===0 && t.attack.length===0){
+      setActionBox(`<span class="hint">この駒は動かせる場所も攻撃できる相手もありません。他の駒を選ぶか、パスしてください。</span>`);
+    } else {
+      setActionBox(actingHint());
+    }
+    render();
+  }
+
+  function actingHint(){
+    return `<span class="hint">青い丸＝移動先／赤い枠＝攻撃対象。選んだマスをクリックしてください。同じ駒をもう一度クリックすると選択解除。</span>`;
+  }
+
+  function doMove(r,c){
+    const {r:sr,c:sc} = state.selected;
+    const from = cellAt(sr,sc);
+    const val = from.value;
+    from.value = null; from.owner = null;
+    const to = cellAt(r,c);
+    to.owner = state.turn;
+    to.value = val;
+    pushLog(`${OWNER_NAME[state.turn]}：${glyph(val)}を ${coord(sr,sc)} → ${coord(r,c)} に移動`, state.turn);
+    triggerBurst(r,c);
+    endTurnAfterAction();
+  }
+
+  function resolveAttack(r,c){
+    const {r:sr,c:sc} = state.selected;
+    const attackerVal = cellAt(sr,sc).value;
+
+    const defenderCell = cellAt(r,c);
+    const defOwner = defenderCell.owner;
+    const val = defenderCell.value;
+    defenderCell.value = null;
+    defenderCell.owner = null;
+
+    pushLog(`${OWNER_NAME[state.turn]}：${glyph(attackerVal)}(${coord(sr,sc)}) が ${OWNER_NAME[defOwner]} の${glyph(val)}(${coord(r,c)}) を攻撃`, state.turn);
+    triggerBurst(r,c);
+
+    if(val===1){
+      pushLog(`→ ${glyph(1)} は消滅した。`, defOwner);
+      afterAttackResolved();
+      return;
+    }
+
+    const values = (val===3) ? [2,1] : [1,1];
+    const noExclude = new Set();
+    const hasAnyCandidate = values.some(v => getSplitCandidates(r,c,defOwner,v,noExclude).length>0);
+    if(!hasAnyCandidate){
+      pushLog(`→ 配置できるマスが一つもないため、${glyph(val)}はそのまま消滅した。`, defOwner);
+      afterAttackResolved();
+      return;
+    }
+
+    state.splitQueue = values.slice();
+    state.splitExclude = new Set();
+    state.splitOwner = defOwner;
+    state.splitOriginR = r;
+    state.splitOriginC = c;
+    advanceSplit();
+  }
+
+  function advanceSplit(){
+    if(state.splitQueue.length===0){
+      afterAttackResolved();
+      return;
+    }
+    const value = state.splitQueue[0];
+    const candidates = getSplitCandidates(state.splitOriginR, state.splitOriginC, state.splitOwner, value, state.splitExclude);
+    if(candidates.length===0){
+      pushLog(`→ ${glyph(value)}の配置先マスがなく消滅した。`, state.splitOwner);
+      state.splitQueue.shift();
+      advanceSplit();
+      return;
+    }
+    state.phase = 'placing';
+    state.placingCandidates = candidates;
+    state.placingValue = value;
+    setActionBox(`<span class="hint">分裂：${glyph(value)} を配置するマス（紫の点線）をクリックしてください。既に駒があるマスは合体します。</span>`);
+    render();
+  }
+
+  function getSplitCandidates(r,c,owner,incoming,exclude){
+    const res = [];
+    for(const [dr,dc] of DIRS8){
+      const nr=r+dr, nc=c+dc;
+      if(!inBoard(nr,nc)) continue;
+      if(exclude.has(key(nr,nc))) continue;
+      const cell = cellAt(nr,nc);
+      if(cell.owner!==null && cell.owner!==owner) continue; // enemy-occupied: blocked
+      const existing = (cell.owner===owner) ? cell.value : null;
+      if(mergeResult(existing, incoming) !== null){
+        res.push({r:nr,c:nc});
+      }
+    }
+    return res;
+  }
+
+  function placeSplitPiece(r,c){
+    const value = state.splitQueue.shift();
+    const cell = cellAt(r,c);
+    const existing = (cell.owner===state.splitOwner) ? cell.value : null;
+    const newVal = mergeResult(existing, value);
+    cell.owner = state.splitOwner;
+    cell.value = newVal;
+    state.splitExclude.add(key(r,c));
+    if(existing!==null){
+      pushLog(`→ ${glyph(value)} を ${coord(r,c)} に配置、既存の${glyph(existing)}と合体して${glyph(newVal)}に`, state.splitOwner);
+    } else {
+      pushLog(`→ ${glyph(value)} を ${coord(r,c)} に配置`, state.splitOwner);
+    }
+    triggerBurst(r,c);
+    advanceSplit();
+  }
+
+  function afterAttackResolved(){
+    state.placingCandidates = [];
+    endTurnAfterAction();
+  }
+
+  function endTurnAfterAction(){
+    clearSelection();
+    const a = pieceCount('A');
+    const b = pieceCount('B');
+    if(a===0 || b===0){
+      state.phase='over';
+      render();
+      showWin(a===0 ? 'B' : 'A', 'elimination');
+      return;
+    }
+    state.turnCount++;
+    if(state.turnCount >= MAX_TURNS){
+      state.phase='over';
+      render();
+      const scoreA = pieceScore('A');
+      const scoreB = pieceScore('B');
+      if(scoreA===scoreB){
+        showDraw(scoreA, scoreB);
+      } else {
+        showWin(scoreA>scoreB ? 'A' : 'B', 'score', scoreA, scoreB);
+      }
+      return;
+    }
+    state.turn = otherPlayer(state.turn);
+    state.forcedAttackers = computeForcedAttackers();
+    setActionBox(turnStartHint());
+    render();
+  }
+
+  // ---------- rendering ----------
+  function glyph(v){ return v===3?'③':v===2?'②':'①'; }
+  function coord(r,c){
+    const file = String.fromCharCode(97+c);
+    const rank = SIZE-r;
+    return file+rank;
+  }
+
+  function setActionBox(html){
+    document.getElementById('actionBox').innerHTML = html;
+  }
+
+  let burstTimer=null;
+  function triggerBurst(r,c){
+    state.burstCell = key(r,c);
+    render();
+    clearTimeout(burstTimer);
+    burstTimer = setTimeout(()=>{ state.burstCell=null; renderBoardOnly(); }, 500);
+  }
+
+  function buildLabels(){
+    const files = document.getElementById('files');
+    const ranks = document.getElementById('ranks');
+    files.innerHTML=''; ranks.innerHTML='';
+    for(let c=0;c<SIZE;c++){
+      const s=document.createElement('span');
+      s.textContent = String.fromCharCode(97+c);
+      files.appendChild(s);
+    }
+    for(let r=0;r<SIZE;r++){
+      const s=document.createElement('span');
+      s.textContent = SIZE-r;
+      ranks.appendChild(s);
+    }
+  }
+
+  function render(){
+    renderBoardOnly();
+    renderTurn();
+    renderCounts();
+    renderLog();
+    renderPassButton();
+  }
+
+  function renderPassButton(){
+    const btn = document.getElementById('passBtn');
+    const forced = state.phase!=='over' && state.forcedAttackers && state.forcedAttackers.length>0;
+    btn.disabled = forced;
+    btn.title = forced ? '攻撃可能な駒があるため、この手番はパスできません。' : '';
+  }
+
+  function renderBoardOnly(){
+    const boardEl = document.getElementById('board');
+    boardEl.innerHTML='';
+    for(let r=0;r<SIZE;r++){
+      for(let c=0;c<SIZE;c++){
+        const cellData = cellAt(r,c);
+        const div = document.createElement('div');
+        div.className = 'cell' + (((r+c)%2===1) ? ' alt' : '');
+        if(state.selected && state.selected.r===r && state.selected.c===c) div.classList.add('selected');
+        if(state.phase==='acting' && state.moveTargets.some(x=>x.r===r&&x.c===c)){
+          div.classList.add('move-target'); div.classList.add('selectable');
+        }
+        if(state.phase==='acting' && state.attackTargets.some(x=>x.r===r&&x.c===c)){
+          div.classList.add('attack-target'); div.classList.add('selectable');
+        }
+        if(state.phase==='placing' && state.placingCandidates.some(x=>x.r===r&&x.c===c)){
+          div.classList.add('split-candidate'); div.classList.add('selectable');
+        }
+        if(cellData.owner===state.turn && cellData.value!==null && state.phase==='idle'){
+          const forcedActive = state.forcedAttackers && state.forcedAttackers.length>0;
+          const isForced = forcedActive && state.forcedAttackers.some(x=>x.r===r&&x.c===c);
+          if(!forcedActive || isForced){
+            div.classList.add('selectable');
+          }
+        }
+        if((state.phase==='idle' || state.phase==='acting') && state.forcedAttackers && state.forcedAttackers.some(x=>x.r===r&&x.c===c)){
+          div.classList.add('forced-attacker');
+          div.classList.add('selectable');
+        }
+        if(state.burstCell===key(r,c)) div.classList.add('burst');
+
+        if(cellData.value!==null){
+          const stackEl = document.createElement('div');
+          stackEl.className='stack';
+          const p = document.createElement('div');
+          p.className = 'piece v'+cellData.value+' '+(cellData.owner==='A'?'pA':'pB');
+          p.textContent = cellData.value;
+          stackEl.appendChild(p);
+          div.appendChild(stackEl);
+        }
+
+        div.addEventListener('click', ()=>onCellClick(r,c));
+        boardEl.appendChild(div);
+      }
+    }
+  }
+
+  function renderTurn(){
+    const dot = document.getElementById('turnDot');
+    const text = document.getElementById('turnText');
+    dot.className = 'turn-dot ' + (state.turn==='A'?'pA':'pB');
+    let sub = '手駒を選択してください';
+    if(state.phase==='placing') sub='分裂先のマスを選んでください';
+    if(state.phase==='over') sub='対局終了';
+    text.innerHTML = `${OWNER_NAME[state.turn]} の番<small>${sub}</small>`;
+
+    const shownTurn = Math.min(state.turnCount+1, MAX_TURNS);
+    document.getElementById('boardStatusTurn').textContent = `ターン ${shownTurn} / ${MAX_TURNS}`;
+    document.getElementById('boardStatusWho').textContent = state.phase==='over' ? '対局終了' : `${OWNER_NAME[state.turn]} の番`;
+    document.getElementById('boardStatusFill').style.width = Math.min(100, (state.turnCount/MAX_TURNS)*100) + '%';
+  }
+
+  function renderCounts(){
+    document.getElementById('countA').textContent = pieceCount('A');
+    document.getElementById('countB').textContent = pieceCount('B');
+    document.getElementById('turnCounter').textContent = Math.min(state.turnCount+1, MAX_TURNS) + ' / ' + MAX_TURNS;
+  }
+
+  function renderLog(){
+    const el = document.getElementById('log');
+    el.innerHTML = state.log.slice().reverse().map(l=>{
+      const cls = l.owner==='A' ? 'a' : (l.owner==='B'?'b':'');
+      return `<div class="log-entry ${cls}">${l.text}</div>`;
+    }).join('');
+  }
+
+  function showWin(owner, reason, scoreA, scoreB){
+    const modal = document.getElementById('winModal');
+    const text = document.getElementById('winText');
+    const desc = document.getElementById('winDesc');
+    const label = document.getElementById('winLabel');
+    label.textContent = 'GAME OVER';
+    text.textContent = OWNER_NAME[owner] + ' の勝利';
+    text.className = 'big ' + (owner==='A'?'a':'b');
+    if(reason==='score'){
+      desc.textContent = `20ターン終了。合計点 A:${scoreA} / B:${scoreB} で ${OWNER_NAME[owner]} の勝利です。`;
+    } else {
+      desc.textContent = '相手の駒がすべて消滅しました。';
+    }
+    modal.classList.remove('hidden');
+  }
+
+  function showDraw(scoreA, scoreB){
+    const modal = document.getElementById('winModal');
+    const text = document.getElementById('winText');
+    const desc = document.getElementById('winDesc');
+    const label = document.getElementById('winLabel');
+    label.textContent = 'GAME OVER';
+    text.textContent = '引き分け';
+    text.className = 'big';
+    desc.textContent = `20ターン終了。合計点 A:${scoreA} / B:${scoreB} で同点のため引き分けです。`;
+    modal.classList.remove('hidden');
+  }
+
+  // ---------- controls ----------
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    if(confirm('対局をリセットして最初からやり直しますか？')) newGame();
+  });
+  document.getElementById('passBtn').addEventListener('click', ()=>{
+    if(state.phase==='over') return;
+    if(state.forcedAttackers && state.forcedAttackers.length>0) return;
+    pushLog(`${OWNER_NAME[state.turn]}：パス`, state.turn);
+    endTurnAfterAction();
+  });
+  document.getElementById('rulesBtn').addEventListener('click', ()=>{
+    document.getElementById('rulesModal').classList.remove('hidden');
+  });
+  document.getElementById('closeRules').addEventListener('click', ()=>{
+    document.getElementById('rulesModal').classList.add('hidden');
+  });
+  document.getElementById('playAgainBtn').addEventListener('click', ()=>{
+    document.getElementById('winModal').classList.add('hidden');
+    newGame();
+  });
+
+  buildLabels();
+  newGame();
+})();
+</script>
+</body>
+</html>
